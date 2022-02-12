@@ -1,13 +1,11 @@
-use iced::{
-    button, executor, scrollable, Application, Button, Clipboard, Command, Element, Row,
-    Scrollable, Settings, Text,
-};
-// 用 include_bytes 如果路径错误，还会提示的
-// const XQFONT: Font = Font::External {
-//     name: "思源宋体",
-//     // 导入字体文件，没有字体无法显示中文
-//     bytes: include_bytes!("../source/SourceHanSerifCN-Bold.otf"),
-// };
+use iced::{Align, Column, Container, Element, Length, Sandbox, Settings, Text};
+use iced_aw::{TabLabel, Tabs};
+mod about;
+use about::{AboutMessage, AboutTab};
+
+const HEADER_SIZE: u16 = 32;
+const TAB_PADDING: u16 = 16;
+
 pub fn main() -> iced::Result {
     //let icon_rgb = vec![255,0,0,1];
 
@@ -28,27 +26,14 @@ pub fn main() -> iced::Result {
     })
 }
 struct App {
-    // 按钮初始状态状态
-    button_state: button::State,
-    text_str: String,
-    // input_str: String,
-    // input_state: text_input::State,
-
-    // slider_value: i32,
-    // slider_state: slider::State,
-
-    // is_checked: bool,
-    // pick_list_str: String,
-    // pick_list_state: pick_list::State<String>,
-
-    // radio_value: bool,
-    scrollable_state: scrollable::State,
-    about_button: button::State,
+    active_tab: usize,
+    about_tab: AboutTab,
 }
 // App 的 message 类型
-#[derive(Debug, Clone)]
+#[derive(Clone, Debug)]
 enum AppMessage {
-    Button,
+    TabSelected(usize),
+    About(AboutMessage),
     // TextInput(String),
     // TextInputSubmit,
 
@@ -65,80 +50,79 @@ enum AppMessage {
 
     // Radio(bool),
 }
-impl Application for App {
-    type Executor = executor::Default;
+impl Sandbox for App {
     type Message = AppMessage;
-    type Flags = ();
-
-    fn new(_flags: ()) -> (App, Command<Self::Message>) {
-        (
-            App {
-                button_state: button::State::new(),
-                text_str: String::from("我是 Text"),
-                // input_str: String::from(""),
-                // input_state: text_input::State::new(),
-                about_button: button::State::new(),
-                // slider_value: 30,
-                // slider_state: slider::State::new(),
-
-                // is_checked: false,
-
-                // pick_list_str: String::from(""),
-                // pick_list_state: pick_list::State::default(),
-
-                // radio_value: false,
-                scrollable_state: scrollable::State::new(),
-            },
-            Command::none(),
-        )
+    fn new() -> Self {
+        App {
+            active_tab: 0,
+            about_tab: AboutTab::new(),
+        }
     }
 
     fn title(&self) -> String {
         // 窗口名称
-        String::from("fileLink")
+        String::from("link_file")
     }
-    fn update(
-        &mut self,
-        message: Self::Message,
-        _clipboard: &mut Clipboard,
-    ) -> Command<Self::Message> {
-        match message {
-            AppMessage::Button => {
-                self.text_str = String::from("Touch Button(Text)");
-            }
-        }
-        Command::none()
-    }
-    fn view(&mut self) -> Element<Self::Message> {
-        // 顶部布局
-        let about_button =
-            Button::new(&mut self.about_button, Text::new("关于")).on_press(AppMessage::Button);
-        let content_text = Text::new(&self.text_str);
-        let chick_button =
-            Button::new(&mut self.button_state, Text::new("迁移")).on_press(AppMessage::Button);
 
-        let raw = Row::new().push(chick_button).push(about_button);
-        // Scrollable  滚动视图
-        Scrollable::new(&mut self.scrollable_state)
-            .push(raw) // 添加控件
-            .push(content_text)
+    fn update(&mut self, message: Self::Message) {
+        match message {
+            AppMessage::TabSelected(selected) => self.active_tab = selected,
+            AppMessage::About(_message) => self.about_tab.update(),
+            // Message::Login(message) => self.login_tab.update(message),
+            // Message::Ferris(message) => self.ferris_tab.update(message),
+            // Message::Counter(message) => self.counter_tab.update(message),
+            // Message::Settings(message) => self.settings_tab.update(message),
+        }
+    }
+
+    fn view(&mut self) -> Element<'_, Self::Message> {
+        // let position = self
+        //    // .settings_tab
+        //     .settings()
+        //     .tab_bar_position
+        //     .unwrap_or_default();
+        // let theme = self
+        //    // .settings_tab
+        //     .settings()
+        //     .tab_bar_theme
+        //     .unwrap_or_default();
+
+        Tabs::new(self.active_tab, AppMessage::TabSelected)
+            .push(self.about_tab.tab_label(), self.about_tab.view())
+            // .push(self.about_tab.tab_label(), self.about_tab.view())
+            // .push(self.ferris_tab.tab_label(), self.ferris_tab.view())
+            // .push(self.counter_tab.tab_label(), self.counter_tab.view())
+            // .push(self.settings_tab.tab_label(), self.settings_tab.view())
+            // .tab_bar_style(theme)
+            // .icon_font(ICON_FONT)
+            // .tab_bar_position(match position {
+            //     TabBarPosition::Top => iced_aw::TabBarPosition::Top,
+            //     TabBarPosition::Bottom => iced_aw::TabBarPosition::Bottom,
+            // })
             .into()
     }
 }
-// fn link_to_files(original: &str, link: &str) -> io::Result<()> {
-//     //let original = "F:\\env\\protoc";   // 源目录
-//     //let link = "C:\\Users\\yanfive\\protoc";  // 软连接地址
+trait Tab {
+    type Message;
 
-//     let metadata = files::metadata(original)?;
-//     let file_type = metadata.file_type();
-//     //match file_type.is_dir(){
-//     // true => println!("yes"),
-//     //   false => println!("no"),
-//     // };
-//     // a -> b
+    fn title(&self) -> String;
 
-//     if file_type.is_dir() == true {
-//         fs::symlink_dir(original, link)?;
-//     };
-//     Ok(())
-// }
+    fn tab_label(&self) -> TabLabel;
+
+    fn view(&mut self) -> Element<'_, Self::Message> {
+        let column = Column::new()
+            .spacing(20)
+            .push(Text::new(self.title()).size(HEADER_SIZE))
+            .push(self.content());
+
+        Container::new(column)
+            .width(Length::Fill)
+            .height(Length::Fill)
+            .align_x(Align::Center)
+            .align_y(Align::Center)
+            .padding(TAB_PADDING)
+            .into()
+    }
+
+    fn content(&mut self) -> Element<'_, Self::Message>;
+}
